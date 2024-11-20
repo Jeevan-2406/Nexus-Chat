@@ -138,24 +138,49 @@ export const addProfileImage = async (request,response,next) => {
     }
 }
 
-export const removeProfileImage = async (request,response,next) => {
+export const removeProfileImage = async (request, response, next) => {
     try {
-        const {userId} = request;
+        const { userId } = request;
         const user = await User.findById(userId);
-        if(!user){
+        
+        if (!user) {
             return response.status(400).send("User not found.");
         }
-        if(user.image){
-            unlinkSync(user.image);
+
+        if (user.image) {
+            try {
+                // Check if file exists before trying to delete
+                const fs = await import('fs');
+                if (fs.existsSync(user.image)) {
+                    fs.unlinkSync(user.image);
+                }
+            } catch (err) {
+                console.log("File deletion error:", err);
+                // Continue even if file deletion fails
+            }
         }
+
+        // Update user regardless of file deletion
         user.image = null;
         await user.save();
-        return response.status(200).send("Profile image removed successfully.");
+        
+        return response.status(200).json({
+            message: "Profile image removed successfully",
+            user: {
+                id: user.id,
+                email: user.email,
+                profileSetup: user.profileSetup,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                image: null,
+                color: user.color,
+            }
+        });
     } catch (error) {
-        console.log({error});
+        console.log({ error });
         return response.status(500).send("Internal Server Error");
     }
-}
+};
 
 export const logout = async (request,response,next) => {
     try {

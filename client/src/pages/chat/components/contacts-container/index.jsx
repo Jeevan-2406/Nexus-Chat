@@ -40,7 +40,7 @@ const ContactsContainer = () => {
             <Title text="Direct Messages" />
             <NewDM />
         </div>
-        <div className="max-w-[38vh] overflow-y-auto scrollbar-hidden">
+        <div className="w-full overflow-y-auto scrollbar-hidden">
           <ContactList contacts={directMessagesContacts} />
         </div>
       </div>
@@ -49,7 +49,7 @@ const ContactsContainer = () => {
             <Title text="Channels" />
             <CreateChannel />
         </div>
-        <div className="max-w-[38vh] overflow-y-auto scrollbar-hidden">
+        <div className="w-full overflow-y-auto scrollbar-hidden">
           <ContactList contacts={channels} isChannel={true} />
         </div>
       </div>
@@ -89,7 +89,7 @@ const Logo = () => {
             fill="#a16ee8"
           ></path>{" "}
         </svg>
-        <span className="text-3xl font-semibold ">Syncronus</span>
+        <span className="text-3xl font-semibold ">Nexus Chat</span>
       </div>
     );
   };

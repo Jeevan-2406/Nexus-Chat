@@ -98,66 +98,117 @@ const Profile = () => {
     }
   };
 
-  const handleDeleteImage = async() => {
+  const handleDeleteImage = async () => {
     try {
-      const response = await apiClient.delete(REMOVE_PROFILE_IMAGE_ROUTE,{withCredentials:true});
-      if(response.status === 200){
-        setUserInfo({...userInfo,image: null});
-        toast.success("Image removed successfully.");
-        setImage(null);
-      }
+        const response = await apiClient.delete(REMOVE_PROFILE_IMAGE_ROUTE, {
+            withCredentials: true
+        });
+        
+        if (response.status === 200) {
+            if (response.data.user) {
+                setUserInfo(response.data.user);
+            } else {
+                setUserInfo({ ...userInfo, image: null });
+            }
+            toast.success("Image removed successfully.");
+            setImage(null);
+        }
     } catch (error) {
-      console.log(error);
+        console.error("Error removing profile image:", error);
+        toast.error("Failed to remove profile image. Please try again.");
     }
   };
 
   return (
-    <div className="bg-[#1b1c24] h-[100vh] flex items-center justify-center flex-col gap-10">
-      <div className="flex flex-col gap-10 w-[80vw] md:w-max">
+    <div className="bg-[#1b1c24] min-h-screen w-full flex items-center justify-center p-4">
+      <div className="flex flex-col gap-6 w-full max-w-2xl">
         <div onClick={handleNavigate}>
-          <IoArrowBack className="text-4xl lg:text-6xl text-white/90 cursor-pointer" />
+          <IoArrowBack className="text-3xl sm:text-4xl lg:text-5xl text-white/90 cursor-pointer" />
         </div>
-        <div className="grid grid-cols-2">
-          <div
-            className="h-full w-32 md:w-48 md:h-48 relative flex items-center justify-center"
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-          >
-            <Avatar className="h-32 w-32 md:w-48 md:h-48 rounded-full overflow-hidden">
-              {image ? (
-                <AvatarImage src={image} alt="profile" className="object-cover w-full h-full bg-black" />
-              ) : (
-                <div className={`uppercase h-32 w-32 md:w-48 md:h-48 text-5xl border-[1px] flex items-center justify-center rounded-full ${getColor(selectedColor)}`}>{firstName ? firstName.split("").shift() : userInfo.email.split("").shift()}</div>
+        
+        {/* Profile Content */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Avatar Section */}
+          <div className="flex justify-center">
+            <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48"
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+            >
+              <Avatar className="w-full h-full rounded-full overflow-hidden">
+                {image ? (
+                  <AvatarImage src={image} alt="profile" className="object-cover w-full h-full bg-black" />
+                ) : (
+                  <div className={`uppercase w-full h-full text-2xl sm:text-3xl md:text-4xl border flex items-center justify-center rounded-full ${getColor(selectedColor)}`}>
+                    {firstName ? firstName.charAt(0) : userInfo.email.charAt(0)}
+                  </div>
+                )}
+              </Avatar>
+              {hovered && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full cursor-pointer"
+                  onClick={image ? handleDeleteImage : handleFileInputClick}
+                >
+                  {image ? 
+                    <FaTrash className="text-white text-xl sm:text-2xl md:text-3xl" /> : 
+                    <FaPlus className="text-white text-xl sm:text-2xl md:text-3xl" />
+                  }
+                </div>
               )}
-            </Avatar>
-            {hovered && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full cursor-pointer" onClick={image ? handleDeleteImage : handleFileInputClick}>
-                {image ? <FaTrash className="text-white text-3xl cursor-pointer" /> : <FaPlus className="text-white text-3xl cursor-pointer" />}
-              </div>
-            )}
-            <input type="file" ref={fileInputRef} className="hidden" onChange={handleImageChange} name="profile-image" accept=".png , .jpg , .jpeg , .svg , .webp" />
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                onChange={handleImageChange} 
+                name="profile-image" 
+                accept=".png,.jpg,.jpeg,.svg,.webp" 
+              />
+            </div>
           </div>
-          <div className="flex min-w-32 md:min-w-64 flex-col gap-5 text-white items-center justify-center">
-            <div className="w-full">
-              <Input placeholder="Email" type="email" disabled value={userInfo.email} className="rounded-lg p-6 bg-[#2c2e3b] border-none" />
-            </div>
-            <div className="w-full">
-              <Input placeholder="First Name" type="text" onChange={(e) => setFirstName(e.target.value)} value={firstName} className="rounded-lg p-6 bg-[#2c2e3b] border-none" />
-            </div>
-            <div className="w-full">
-              <Input placeholder="Last Name" type="text" onChange={(e) => setLastName(e.target.value)} value={lastName} className="rounded-lg p-6 bg-[#2c2e3b] border-none" />
-            </div>
-            <div className="w-full flex gap-5">
-              {colors.map((color,index) => (
-                <div className={`${color} h-8 w-8 rounded-full cursor-pointer transition-all duration-300
-                ${selectedColor === index ? "outline outline-white/70 outline-2" : ""}`} key={index} onClick={()=>setSelectedColor(index)}></div>
+
+          {/* Form Section */}
+          <div className="flex flex-col gap-4 w-full">
+            <Input
+              placeholder="Email"
+              type="email"
+              disabled
+              value={userInfo.email}
+              className="rounded-lg p-4 sm:p-5 bg-[#2c2e3b] border-none"
+            />
+            <Input
+              placeholder="First Name"
+              type="text"
+              onChange={(e) => setFirstName(e.target.value)}
+              value={firstName}
+              className="rounded-lg p-4 sm:p-5 bg-[#2c2e3b] border-none"
+            />
+            <Input
+              placeholder="Last Name"
+              type="text"
+              onChange={(e) => setLastName(e.target.value)}
+              value={lastName}
+              className="rounded-lg p-4 sm:p-5 bg-[#2c2e3b] border-none"
+            />
+            
+            {/* Color Selection */}
+            <div className="flex flex-wrap gap-3">
+              {colors.map((color, index) => (
+                <div
+                  key={index}
+                  className={`${color} h-6 w-6 sm:h-8 sm:w-8 rounded-full cursor-pointer transition-all duration-300
+                    ${selectedColor === index ? "ring-2 ring-white ring-offset-2 ring-offset-[#1b1c24]" : ""}`}
+                  onClick={() => setSelectedColor(index)}
+                />
               ))}
             </div>
           </div>
         </div>
-        <div className="w-full">
-        <Button className="h-16 w-full bg-purple-700 hover:bg-purple-900 transition-all duration-300" onClick={saveChanges}>Save Changes</Button>
-        </div>
+
+        {/* Save Button */}
+        <Button 
+          className="h-12 sm:h-14 w-full bg-purple-700 hover:bg-purple-800 transition-all duration-300 mt-4" 
+          onClick={saveChanges}
+        >
+          Save Changes
+        </Button>
       </div>
     </div>
   );

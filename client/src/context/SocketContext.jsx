@@ -19,40 +19,67 @@ export const SocketProvider = ({children}) => {
                 withCredentials:true,
                 query:{userId: userInfo.id},
             });
-            socket.current.on("connect",() => {
-                console.log("Connected to socket server.");
-            });
 
-            const handleRecieveMessage = (message) => {
-                const {selectedChatType,selectedChatData,addMessage,addContactsInDMContacts} = useAppStore.getState();
+            const handleReceiveMessage = (message) => {
+                const {
+                    selectedChatType,
+                    selectedChatData,
+                    addMessage,
+                    addContactsInDMContacts,
+                    updateContactLastMessage,
+                    directMessagesContacts
+                } = useAppStore.getState();
 
-                if(
-                    selectedChatType !== undefined && 
+                // Add message to current chat if selected
+                if(selectedChatType === "contact" && 
                     (selectedChatData._id === message.sender._id ||
-                        selectedChatData._id === message.recipient._id)
+                    selectedChatData._id === message.recipient._id)
                 ){
-                    console.log("message recieved: ",message);
                     addMessage(message);
                 }
-                addContactsInDMContacts(message);
+
+                // Update contacts list for new messages
+                if (message.sender._id !== userInfo.id) {
+                    const existingContact = directMessagesContacts.find(
+                        contact => contact._id === message.sender._id
+                    );
+                    
+                    if (!existingContact) {
+                        addContactsInDMContacts(message);
+                    }
+                }
+
+                // Always update last message
+                updateContactLastMessage(message);
             };
 
-            const handleRecieveChannelMessage = (message) => {
-                const {selectedChatType,selectedChatData,addMessage,addChannelInChannelList} = useAppStore.getState();
+            const handleReceiveChannelMessage = (message) => {
+                const {
+                    selectedChatType,
+                    selectedChatData,
+                    addMessage,
+                    addChannelInChannelList,
+                    updateChannelLastMessage
+                } = useAppStore.getState();
 
-                if(
-                    selectedChatType !== undefined &&
+                // Add message to current channel if selected
+                if(selectedChatType === "channel" && 
                     selectedChatData._id === message.channelId
-                ) {
+                ){
                     addMessage(message);
                 }
-                addChannelInChannelList(message);
-            }
 
-            socket.current.on("recieveMessage",handleRecieveMessage);
-            socket.current.on("recieve-channel-message",handleRecieveChannelMessage);
+                // Update channels list
+                addChannelInChannelList(message);
+                updateChannelLastMessage(message);
+            };
+
+            socket.current.on("recieveMessage", handleReceiveMessage);
+            socket.current.on("recieve-channel-message", handleReceiveChannelMessage);
 
             return () => {
+                socket.current.off("recieveMessage", handleReceiveMessage);
+                socket.current.off("recieve-channel-message", handleReceiveChannelMessage);
                 socket.current.disconnect();
             };
         }
@@ -62,5 +89,5 @@ export const SocketProvider = ({children}) => {
         <SocketContext.Provider value={socket.current}>
             {children}
         </SocketContext.Provider>
-    )
-}
+    );
+};
