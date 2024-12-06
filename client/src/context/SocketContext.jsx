@@ -20,6 +20,18 @@ export const SocketProvider = ({children}) => {
                 query:{userId: userInfo.id},
             });
 
+            // Handle initial online users
+            socket.current.on("online_users", (onlineUsers) => {
+                const { setOnlineUsers } = useAppStore.getState();
+                setOnlineUsers(new Set(onlineUsers));
+            });
+
+            // Handle user status changes
+            socket.current.on("user_status_change", ({userId, status}) => {
+                const { updateUserStatus } = useAppStore.getState();
+                updateUserStatus(userId, status);
+            });
+
             const handleReceiveMessage = (message) => {
                 const {
                     selectedChatType,
@@ -80,6 +92,8 @@ export const SocketProvider = ({children}) => {
             return () => {
                 socket.current.off("recieveMessage", handleReceiveMessage);
                 socket.current.off("recieve-channel-message", handleReceiveChannelMessage);
+                socket.current.off("online_users");
+                socket.current.off("user_status_change");
                 socket.current.disconnect();
             };
         }

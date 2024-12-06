@@ -8,6 +8,7 @@ export const createChatSlice = (set,get) => ({
     fileUploadProgress:0,
     fileDownloadProgress:0,
     channels: [],
+    onlineUsers: new Set(),
     setChannels: (channels) => set({channels}),
     setIsUploading: (isUploading) => set({isUploading}),
     setIsDownloading: (isDownloading) => set({isDownloading}),
@@ -19,6 +20,16 @@ export const createChatSlice = (set,get) => ({
         set({selectedChatMessages}),
     setDirectMessagesContacts: (directMessagesContacts) =>
         set({directMessagesContacts}),
+    setOnlineUsers: (onlineUsers) => set({ onlineUsers }),
+    updateUserStatus: (userId, status) => {
+        const onlineUsers = new Set(get().onlineUsers);
+        if (status === "online") {
+            onlineUsers.add(userId);
+        } else {
+            onlineUsers.delete(userId);
+        }
+        set({ onlineUsers });
+    },
     addChannel: (channel) => {
         const channels = get().channels;
         set({channels: [channel, ...channels]});

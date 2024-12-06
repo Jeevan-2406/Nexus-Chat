@@ -12,12 +12,30 @@ const setupSocket = (server) => {
     });
 
     const userSocketMap = new Map();
+    const onlineUsers = new Set();
+
+    const handleUserOnline = (userId) => {
+        onlineUsers.add(userId);
+        io.emit("user_status_change", {
+            userId,
+            status: "online"
+        });
+    };
+
+    const handleUserOffline = (userId) => {
+        onlineUsers.delete(userId);
+        io.emit("user_status_change", {
+            userId,
+            status: "offline"
+        });
+    };
 
     const disconnect = (socket) => {
         console.log(`Client Disconnected: ${socket.id}`);
-        for(const [userId,socketId] of userSocketMap.entries()){
+        for(const [userId, socketId] of userSocketMap.entries()){
             if(socketId === socket.id) {
                 userSocketMap.delete(userId);
+                handleUserOffline(userId);
                 break;
             }
         }
@@ -84,7 +102,9 @@ const setupSocket = (server) => {
 
         if(userId) {
             userSocketMap.set(userId,socket.id);
-            console.log(`User: ${userId} connected with socket ID: ${socket.id}`)
+            handleUserOnline(userId);
+
+            socket.emit("online_users", Array.from(onlineUsers));
         } else {
             console.log(`User ID not provided during connection.`);
         }
