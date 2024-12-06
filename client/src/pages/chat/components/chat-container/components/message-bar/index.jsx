@@ -11,8 +11,8 @@ import { RiEmojiStickerLine } from 'react-icons/ri';
 const MessageBar = () => {
     const emojiRef = useRef();
     const fileInputRef = useRef();
-    const socket = useSocket();
-    const { selectedChatType, selectedChatData, userInfo, setIsUploading, setFileUploadProgress } = useAppStore();
+    const { socket, handleTyping } = useSocket();
+    const { selectedChatData, selectedChatType, userInfo, setIsUploading, setFileUploadProgress } = useAppStore();
     const [message, setMessage] = useState("");
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
@@ -33,26 +33,30 @@ const MessageBar = () => {
     };
 
     const handleSendMessage = async () => {
-        if (message.trim() === "") return;  // Prevent sending empty messages
+        if (message.trim().length > 0 && socket) {
+            try {
+                const messageData = {
+                    sender: userInfo.id,
+                    recipient: selectedChatData._id,
+                    messageType: "text",
+                    content: message
+                };
 
-        if (selectedChatType === "contact") {
-            socket.emit("sendMessage", {
-                sender: userInfo.id,
-                content: message,
-                recipient: selectedChatData._id,
-                messageType: "text",
-                fileUrl: undefined,
-            });
-        } else if (selectedChatType === "channel") {
-            socket.emit("send-channel-message", {
-                sender: userInfo.id,
-                content: message,
-                messageType: "text",
-                fileUrl: undefined,
-                channelId: selectedChatData._id,
-            });
+                if (selectedChatType === "channel") {
+                    socket.emit("send-channel-message", {
+                        ...messageData,
+                        channelId: selectedChatData._id
+                    });
+                } else {
+                    socket.emit("sendMessage", messageData);
+                }
+                
+                setMessage("");
+            } catch (error) {
+                console.error("Error sending message:", error);
+                toast.error("Failed to send message");
+            }
         }
-        setMessage("");
     };
 
     const handleAttachmentClick = () => {
@@ -112,6 +116,13 @@ const MessageBar = () => {
         }
     };
 
+    const handleInputChange = (e) => {
+        setMessage(e.target.value);
+        if (selectedChatData?._id) {
+            handleTyping(selectedChatData._id);
+        }
+    };
+
     return (
         <div className="h-[10vh] bg-[#1c1d25] flex justify-center items-center px-4 sm:px-8 mb-6 gap-3 sm:gap-6">
             <div className="flex-1 flex bg-[#2a2b33] rounded-md items-center gap-2 sm:gap-5 pr-2 sm:pr-5">
@@ -120,7 +131,7 @@ const MessageBar = () => {
                     className="flex-1 p-3 sm:p-5 bg-transparent rounded-md focus:border-none focus:outline-none text-sm sm:text-base"
                     placeholder="Enter Message"
                     value={message}
-                    onChange={(e) => setMessage(e.target.value)}
+                    onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
                 />
                 <button className="text-neutral-500 focus:border-none focus:outline-none focus:text-white duration-300 transition-all p-2" onClick={handleAttachmentClick}>

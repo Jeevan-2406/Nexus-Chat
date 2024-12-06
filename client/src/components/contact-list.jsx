@@ -5,7 +5,7 @@ import { getColor } from "@/lib/utils";
 
 const ContactList = ({contacts,isChannel = false}) => {
 
-    const {selectedChatData,selectedChatType,setSelectedChatData,setSelectedChatType,setSelectedChatMessages,onlineUsers} = useAppStore();
+    const {selectedChatData,selectedChatType,setSelectedChatData,setSelectedChatType,setSelectedChatMessages,onlineUsers,lastSeenTimes,typingUsers} = useAppStore();
 
     const handleClick = (contact) => {
         if(isChannel) setSelectedChatType("channel");
@@ -14,6 +14,17 @@ const ContactList = ({contacts,isChannel = false}) => {
         if(selectedChatData && selectedChatData._id !== contact._id){
             setSelectedChatMessages([]);
         }
+    };
+
+    const formatLastSeen = (timestamp) => {
+        const now = new Date();
+        const lastSeen = new Date(timestamp);
+        const diffMinutes = Math.floor((now - lastSeen) / 1000 / 60);
+        
+        if (diffMinutes < 1) return 'Just now';
+        if (diffMinutes < 60) return `${diffMinutes}m ago`;
+        if (diffMinutes < 1440) return `${Math.floor(diffMinutes/60)}h ago`;
+        return `${Math.floor(diffMinutes/1440)}d ago`;
     };
 
     return (
@@ -74,9 +85,27 @@ const ContactList = ({contacts,isChannel = false}) => {
                                     {contact.firstName ? `${contact.firstName} ${contact.lastName}` : contact.email}
                                 </span>
                                 {!isChannel && (
-                                    <span className="text-xs text-gray-400">
-                                        {onlineUsers.has(contact._id) ? 'Online' : 'Offline'}
-                                    </span>
+                                    <div className="flex flex-col">
+                                        <span className="text-xs">
+                                            {typingUsers.has(contact._id) ? (
+                                                <span className="text-green-400 animate-pulse">
+                                                    typing...
+                                                </span>
+                                            ) : onlineUsers.has(contact._id) ? (
+                                                <span className="text-green-400">
+                                                    online
+                                                </span>
+                                            ) : lastSeenTimes[contact._id] ? (
+                                                <span className="text-gray-400">
+                                                    last seen {formatLastSeen(lastSeenTimes[contact._id])}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-400">
+                                                    offline
+                                                </span>
+                                            )}
+                                        </span>
+                                    </div>
                                 )}
                             </div>
                         )

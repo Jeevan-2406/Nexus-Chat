@@ -9,6 +9,8 @@ export const createChatSlice = (set,get) => ({
     fileDownloadProgress:0,
     channels: [],
     onlineUsers: new Set(),
+    lastSeenTimes: {},
+    typingUsers: new Map(),
     setChannels: (channels) => set({channels}),
     setIsUploading: (isUploading) => set({isUploading}),
     setIsDownloading: (isDownloading) => set({isDownloading}),
@@ -21,14 +23,31 @@ export const createChatSlice = (set,get) => ({
     setDirectMessagesContacts: (directMessagesContacts) =>
         set({directMessagesContacts}),
     setOnlineUsers: (onlineUsers) => set({ onlineUsers }),
-    updateUserStatus: (userId, status) => {
+    setLastSeenTimes: (lastSeenTimes) => set({ lastSeenTimes }),
+    updateUserStatus: (userId, status, lastSeen) => {
         const onlineUsers = new Set(get().onlineUsers);
+        const lastSeenTimes = { ...get().lastSeenTimes };
+        
         if (status === "online") {
             onlineUsers.add(userId);
+            delete lastSeenTimes[userId];
         } else {
             onlineUsers.delete(userId);
+            if (lastSeen) {
+                lastSeenTimes[userId] = lastSeen;
+            }
         }
-        set({ onlineUsers });
+        
+        set({ onlineUsers, lastSeenTimes });
+    },
+    updateTypingStatus: (userId, isTyping) => {
+        const typingUsers = new Map(get().typingUsers);
+        if (isTyping) {
+            typingUsers.set(userId, true);
+        } else {
+            typingUsers.delete(userId);
+        }
+        set({ typingUsers });
     },
     addChannel: (channel) => {
         const channels = get().channels;

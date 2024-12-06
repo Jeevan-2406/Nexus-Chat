@@ -1,38 +1,69 @@
-import { useAppStore } from '@/store';
-import { HOST } from '@/utils/constants';
-import {createContext,useContext,useEffect,useRef} from 'react';
-import { io } from 'socket.io-client';
+import { createContext, useContext, useEffect, useRef } from "react";
+import { io } from "socket.io-client";
+import { useAppStore } from "@/store";
+import { HOST } from "@/utils/constants";
 
-const SocketContext = createContext(null);
+const SocketContext = createContext();
 
 export const useSocket = () => {
-    return useContext(SocketContext);
-}
+    const context = useContext(SocketContext);
+    if (!context) {
+        throw new Error("useSocket must be used within a SocketProvider");
+    }
+    return context;
+};
 
 export const SocketProvider = ({children}) => {
-    const socket = useRef();
+    const socketRef = useRef();
+    const typingTimeoutRef = useRef();
     const {userInfo} = useAppStore();
+
+    const emitTyping = (recipientId, isTyping) => {
+        if (socketRef.current) {
+            socketRef.current.emit("typing", {
+                userId: userInfo?.id,
+                recipientId,
+                isTyping
+            });
+        }
+    };
+
+    const handleTyping = (recipientId) => {
+        emitTyping(recipientId, true);
+
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        typingTimeoutRef.current = setTimeout(() => {
+            emitTyping(recipientId, false);
+        }, 2000);
+    };
 
     useEffect(() => {
         if(userInfo){
-            socket.current = io(HOST,{
+            socketRef.current = io(HOST,{
                 withCredentials:true,
                 query:{userId: userInfo.id},
             });
 
-            // Handle initial online users
-            socket.current.on("online_users", (onlineUsers) => {
-                const { setOnlineUsers } = useAppStore.getState();
-                setOnlineUsers(new Set(onlineUsers));
+            socketRef.current.on("online_users", ({online, lastSeen}) => {
+                const { setOnlineUsers, setLastSeenTimes } = useAppStore.getState();
+                setOnlineUsers(new Set(online));
+                setLastSeenTimes(lastSeen);
             });
 
-            // Handle user status changes
-            socket.current.on("user_status_change", ({userId, status}) => {
+            socketRef.current.on("typing_status", ({userId, isTyping}) => {
+                const { updateTypingStatus } = useAppStore.getState();
+                updateTypingStatus(userId, isTyping);
+            });
+
+            socketRef.current.on("user_status_change", ({userId, status, lastSeen}) => {
                 const { updateUserStatus } = useAppStore.getState();
-                updateUserStatus(userId, status);
+                updateUserStatus(userId, status, lastSeen);
             });
 
-            const handleReceiveMessage = (message) => {
+            socketRef.current.on("recieveMessage", (message) => {
                 const {
                     selectedChatType,
                     selectedChatData,
@@ -42,7 +73,6 @@ export const SocketProvider = ({children}) => {
                     directMessagesContacts
                 } = useAppStore.getState();
 
-                // Add message to current chat if selected
                 if(selectedChatType === "contact" && 
                     (selectedChatData._id === message.sender._id ||
                     selectedChatData._id === message.recipient._id)
@@ -50,7 +80,6 @@ export const SocketProvider = ({children}) => {
                     addMessage(message);
                 }
 
-                // Update contacts list for new messages
                 if (message.sender._id !== userInfo.id) {
                     const existingContact = directMessagesContacts.find(
                         contact => contact._id === message.sender._id
@@ -61,46 +90,31 @@ export const SocketProvider = ({children}) => {
                     }
                 }
 
-                // Always update last message
                 updateContactLastMessage(message);
-            };
-
-            const handleReceiveChannelMessage = (message) => {
-                const {
-                    selectedChatType,
-                    selectedChatData,
-                    addMessage,
-                    addChannelInChannelList,
-                    updateChannelLastMessage
-                } = useAppStore.getState();
-
-                // Add message to current channel if selected
-                if(selectedChatType === "channel" && 
-                    selectedChatData._id === message.channelId
-                ){
-                    addMessage(message);
-                }
-
-                // Update channels list
-                addChannelInChannelList(message);
-                updateChannelLastMessage(message);
-            };
-
-            socket.current.on("recieveMessage", handleReceiveMessage);
-            socket.current.on("recieve-channel-message", handleReceiveChannelMessage);
+            });
 
             return () => {
-                socket.current.off("recieveMessage", handleReceiveMessage);
-                socket.current.off("recieve-channel-message", handleReceiveChannelMessage);
-                socket.current.off("online_users");
-                socket.current.off("user_status_change");
-                socket.current.disconnect();
+                if (socketRef.current) {
+                    socketRef.current.off("online_users");
+                    socketRef.current.off("typing_status");
+                    socketRef.current.off("user_status_change");
+                    socketRef.current.off("recieveMessage");
+                    socketRef.current.disconnect();
+                }
+                if (typingTimeoutRef.current) {
+                    clearTimeout(typingTimeoutRef.current);
+                }
             };
         }
     }, [userInfo]);
 
+    const value = {
+        socket: socketRef.current,
+        handleTyping
+    };
+
     return (
-        <SocketContext.Provider value={socket.current}>
+        <SocketContext.Provider value={value}>
             {children}
         </SocketContext.Provider>
     );

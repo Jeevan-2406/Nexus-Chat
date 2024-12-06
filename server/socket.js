@@ -13,6 +13,8 @@ const setupSocket = (server) => {
 
     const userSocketMap = new Map();
     const onlineUsers = new Set();
+    const userLastSeen = new Map();
+    const typingUsers = new Map();
 
     const handleUserOnline = (userId) => {
         onlineUsers.add(userId);
@@ -24,10 +26,31 @@ const setupSocket = (server) => {
 
     const handleUserOffline = (userId) => {
         onlineUsers.delete(userId);
+        userLastSeen.set(userId, new Date());
         io.emit("user_status_change", {
             userId,
-            status: "offline"
+            status: "offline",
+            lastSeen: userLastSeen.get(userId)
         });
+    };
+
+    const handleTypingStatus = (data) => {
+        const { userId, recipientId, isTyping } = data;
+        const key = `${userId}-${recipientId}`;
+        
+        if (isTyping) {
+            typingUsers.set(key, true);
+        } else {
+            typingUsers.delete(key);
+        }
+
+        const recipientSocketId = userSocketMap.get(recipientId);
+        if (recipientSocketId) {
+            io.to(recipientSocketId).emit("typing_status", {
+                userId,
+                isTyping
+            });
+        }
     };
 
     const disconnect = (socket) => {
@@ -104,13 +127,17 @@ const setupSocket = (server) => {
             userSocketMap.set(userId,socket.id);
             handleUserOnline(userId);
 
-            socket.emit("online_users", Array.from(onlineUsers));
+            socket.emit("online_users", {
+                online: Array.from(onlineUsers),
+                lastSeen: Object.fromEntries(userLastSeen)
+            });
         } else {
             console.log(`User ID not provided during connection.`);
         }
 
         socket.on("sendMessage",sendMessage);
         socket.on("send-channel-message",sendChannelMessage);
+        socket.on("typing", handleTypingStatus);
         socket.on("disconnect",()=>disconnect(socket));
     })
 };
